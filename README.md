@@ -52,6 +52,8 @@ The following command both runs all the steps of the conan file, and publishes t
 | fPIC      | True |  [True, False] |
 | libiconv      | True |  [True, False] |
 | readline      | True |  [True, False] |
+| libgdbm_compat      | True |  [True, False] |
+| gdbmtool_debug      | True |  [True, False] |
 
 
 ## Add Remote

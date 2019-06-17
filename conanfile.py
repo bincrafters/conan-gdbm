@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from conans import ConanFile, AutoToolsBuildEnvironment, tools
+import glob
 import os
 
 
@@ -67,24 +68,11 @@ class GdbmConan(ConanFile):
         extracted_dir = "{}-{}".format(self.name, self.version)
         os.rename(extracted_dir, self._source_subfolder)
 
-        if self.options.gdbmtool_debug:
-            self.output.warn("Removing files similar to calling "
-                             "`make -C src maintainer-clean-generic` "
-                             " for enable-gdbmtool-debug to take effect")
-            # Equivalent to `make -C src maintainer-clean-generic` needed
-            _del_files = ['gram.c', 'lex.c', 'gdbm.h', 'gram.h']
-            for _f in _del_files:
-                try:
-                    os.remove(os.path.join(self._source_subfolder, "src", _f))
-                except FileNotFoundError:
-                    pass
-
     def build(self):
         conf_args = [
-            "--disable-dependency-tracking",  # Speeds up one-time builds
             "--enable-debug" if self.settings.build_type == "Debug" else "--disable-debug",
             "--with-libiconv-prefix" if self.options.libiconv else "--libiconv-prefix",
-            "--with-libintl-prefix",  # if self.options.libintl else "--libintl-prefix",
+            "--with-libintl-prefix",
             "--with-readline" if self.options.readline else "--without-readline",
         ]
 
@@ -107,6 +95,11 @@ class GdbmConan(ConanFile):
         conf_dir = os.path.join(self.source_folder, self._source_subfolder)
         autotools = AutoToolsBuildEnvironment(self)
         autotools.configure(configure_dir=conf_dir, args=conf_args)
+
+        if self.options.gdbmtool_debug:
+            with tools.chdir("src"):
+                autotools.make(args=["maintainer-clean-generic", "V=1"])
+
         autotools.make(args=["V=1"])
 
     def package(self):
@@ -117,6 +110,11 @@ class GdbmConan(ConanFile):
                   src=os.path.join(os.path.join(self.source_folder,
                                                 self._source_subfolder)),
                   dst="licenses")
+
+        # remove libtool .la files - they have hard-coded paths
+        with tools.chdir(os.path.join(self.package_folder, "lib")):
+            for filename in glob.glob("*.la"):
+                os.unlink(filename)
 
     def package_info(self):
         self.cpp_info.includedirs = ["include"]
