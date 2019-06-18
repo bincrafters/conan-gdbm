@@ -55,10 +55,8 @@ class GdbmConan(ConanFile):
             self.requires("readline/7.0@bincrafters/stable")
 
     def build_requirements(self):
-        # requirements for gdbmtool-debug
-        if self.options.gdbmtool_debug:
-            self.build_requires("bison_installer/3.3.2@bincrafters/stable")
-            self.build_requires("flex_installer/2.6.4@bincrafters/stable")
+        self.build_requires("bison_installer/3.3.2@bincrafters/stable")
+        self.build_requires("flex_installer/2.6.4@bincrafters/stable")
 
     def source(self):
         filename = "{}-{}.tar.gz".format(self.name, self.version)
@@ -97,10 +95,11 @@ class GdbmConan(ConanFile):
             autotools = AutoToolsBuildEnvironment(self)
             autotools.configure(args=conf_args)
 
-            if self.options.gdbmtool_debug:
-                with tools.chdir("src"):
-                    autotools.make(args=["maintainer-clean-generic", "V=1"])
-
+            # gdbmtool-debug requires removal and regeneration of some files.
+            # There is no harm in removing and regenerating them anyways.
+            # This regeneration needs to be done inside the source tree, so no_copy_source == False
+            with tools.chdir("src"):
+                autotools.make(args=["maintainer-clean-generic", "V=1"])
             autotools.make(args=["V=1"])
 
     def package(self):
