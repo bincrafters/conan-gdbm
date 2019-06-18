@@ -26,7 +26,6 @@ class GdbmConan(ConanFile):
         "libiconv": [True, False],
         "readline": [True, False],
         "libgdbm_compat": [True, False],
-        "gdbmtool_debug": [True, False],
     }
     default_options = {
         "shared": False,
@@ -34,7 +33,6 @@ class GdbmConan(ConanFile):
         "libiconv": True,
         "readline": True,
         "libgdbm_compat": True,
-        "gdbmtool_debug": True,
     }
 
     # Custom attributes for Bincrafters recipe conventions
@@ -89,16 +87,9 @@ class GdbmConan(ConanFile):
         if self.options.libgdbm_compat:
             conf_args.append("--enable-libgdbm-compat")
 
-        if self.options.gdbmtool_debug:
-            conf_args.append("--enable-gdbmtool-debug")
-
         conf_dir = os.path.join(self.source_folder, self._source_subfolder)
         autotools = AutoToolsBuildEnvironment(self)
         autotools.configure(configure_dir=conf_dir, args=conf_args)
-
-        if self.options.gdbmtool_debug:
-            with tools.chdir("src"):
-                autotools.make(args=["maintainer-clean-generic", "V=1"])
 
         autotools.make(args=["V=1"])
 
