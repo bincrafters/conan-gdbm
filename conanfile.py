@@ -19,13 +19,14 @@ class GdbmConan(ConanFile):
     author = "Bincrafters <bincrafters@gmail.com>"
     license = "GPL-3.0"
     settings = "os", "compiler", "build_type", "arch"
-    no_copy_source = True
+    no_copy_source = False
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
         "libiconv": [True, False],
         "readline": [True, False],
         "libgdbm_compat": [True, False],
+        "gdbmtool_debug": [True, False],
     }
     default_options = {
         "shared": False,
@@ -33,6 +34,7 @@ class GdbmConan(ConanFile):
         "libiconv": True,
         "readline": True,
         "libgdbm_compat": True,
+        "gdbmtool_debug": True,
     }
 
     # Custom attributes for Bincrafters recipe conventions
@@ -54,8 +56,9 @@ class GdbmConan(ConanFile):
 
     def build_requirements(self):
         # requirements for gdbmtool-debug
-        self.build_requires("bison_installer/3.3.2@bincrafters/stable")
-        self.build_requires("flex_installer/2.6.4@bincrafters/stable")
+        if self.options.gdbmtool_debug:
+            self.build_requires("bison_installer/3.3.2@bincrafters/stable")
+            self.build_requires("flex_installer/2.6.4@bincrafters/stable")
 
     def source(self):
         filename = "{}-{}.tar.gz".format(self.name, self.version)
@@ -87,14 +90,21 @@ class GdbmConan(ConanFile):
         if self.options.libgdbm_compat:
             conf_args.append("--enable-libgdbm-compat")
 
-        conf_dir = os.path.join(self.source_folder, self._source_subfolder)
-        autotools = AutoToolsBuildEnvironment(self)
-        autotools.configure(configure_dir=conf_dir, args=conf_args)
+        if self.options.gdbmtool_debug:
+            conf_args.append("--enable-gdbmtool-debug")
 
-        autotools.make(args=["V=1"])
+        with tools.chdir(self._source_subfolder):
+            autotools = AutoToolsBuildEnvironment(self)
+            autotools.configure(args=conf_args)
+
+            if self.options.gdbmtool_debug:
+                with tools.chdir("src"):
+                    autotools.make(args=["maintainer-clean-generic", "V=1"])
+
+            autotools.make(args=["V=1"])
 
     def package(self):
-        with tools.chdir(self.build_folder):
+        with tools.chdir(os.path.join(self.build_folder, self._source_subfolder)):
             autotools = AutoToolsBuildEnvironment(self)
             autotools.install()
         self.copy("COPYING",
