@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from conans import ConanFile, AutoToolsBuildEnvironment, tools
 import glob
 import os
+
+from conans import ConanFile, AutoToolsBuildEnvironment, tools
+from conans.errors import ConanInvalidConfiguration
 
 
 class GdbmConan(ConanFile):
@@ -19,7 +21,6 @@ class GdbmConan(ConanFile):
     author = "Bincrafters <bincrafters@gmail.com>"
     license = "GPL-3.0"
     settings = "os", "compiler", "build_type", "arch"
-    no_copy_source = False
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
@@ -36,17 +37,16 @@ class GdbmConan(ConanFile):
         "libgdbm_compat": True,
         "gdbmtool_debug": True,
     }
+    _autotools = None
 
-    # Custom attributes for Bincrafters recipe conventions
-    _source_subfolder = "source_subfolder"
-    _build_subfolder = "build_subfolder"
+    @property
+    def _source_subfolder(self):
+        return "source_subfolder"
 
-    def config_options(self):
+    def configure(self):
+        if self.settings.os == "Windows":
+            raise ConanInvalidConfiguration("gdbm is not supported on Windows.")
         del self.settings.compiler.libcxx
-        # TODO: probably has to remove fPIC if MSVC too (which currently won't
-        # work due to readline)
-        if self.options.shared:
-            del self.options.fPIC
 
     def requirements(self):
         if self.options.libiconv:
@@ -63,59 +63,56 @@ class GdbmConan(ConanFile):
         url = "https://mirrors.tripadvisor.com/gnu/{}/{}".format(self.name, filename)
         sha256 = "86e613527e5dba544e73208f42b78b7c022d4fa5a6d5498bf18c8d6f745b91dc"
         tools.get(url, sha256=sha256)
-
         extracted_dir = "{}-{}".format(self.name, self.version)
         os.rename(extracted_dir, self._source_subfolder)
 
+    def _configure_autotools(self):
+        if not self._autotools:
+            conf_args = [
+                "--enable-debug" if self.settings.build_type == "Debug" else "--disable-debug",
+                "--with-readline" if self.options.readline else "--without-readline",
+                "--with-libintl-prefix"
+            ]
+
+            if self.options.libiconv:
+                conf_args.append("--with-libiconv-prefix={}".format(self.deps_cpp_info["libiconv"].lib_paths[0]))
+
+            if self.options.shared:
+                conf_args.append("--disable-static")
+                conf_args.append("--enable-shared")
+                conf_args.append("--disable-rpaths")
+            else:
+                conf_args.append("--enable-static")
+                conf_args.append("--disable-shared")
+                conf_args.append("--with-pic" if self.options.fPIC
+                                else "--without-pic")
+
+            if self.options.libgdbm_compat:
+                conf_args.append("--enable-libgdbm-compat")
+
+            if self.options.gdbmtool_debug:
+                conf_args.append("--enable-gdbmtool-debug")
+
+            self._autotools = AutoToolsBuildEnvironment(self)
+            self._autotools.configure(args=conf_args)
+        return self._autotools
+
     def build(self):
-        conf_args = [
-            "--enable-debug" if self.settings.build_type == "Debug" else "--disable-debug",
-            "--with-libiconv-prefix" if self.options.libiconv else "--libiconv-prefix",
-            "--with-libintl-prefix",
-            "--with-readline" if self.options.readline else "--without-readline",
-        ]
-
-        if self.options.shared:
-            conf_args.append("--disable-static")
-            conf_args.append("--enable-shared")
-            conf_args.append("--disable-rpaths")
-        else:
-            conf_args.append("--enable-static")
-            conf_args.append("--disable-shared")
-            conf_args.append("--with-pic" if self.options.fPIC
-                             else "--without-pic")
-
-        if self.options.libgdbm_compat:
-            conf_args.append("--enable-libgdbm-compat")
-
-        if self.options.gdbmtool_debug:
-            conf_args.append("--enable-gdbmtool-debug")
-
         with tools.chdir(self._source_subfolder):
-            autotools = AutoToolsBuildEnvironment(self)
-            autotools.configure(args=conf_args)
-
-            # gdbmtool-debug requires removal and regeneration of some files.
-            # There is no harm in removing and regenerating them anyways.
-            # This regeneration needs to be done inside the source tree, so no_copy_source == False
+            autotools = self._configure_autotools()
             with tools.chdir("src"):
-                autotools.make(args=["maintainer-clean-generic", "V=1"])
-            autotools.make(args=["V=1"])
+                autotools.make(args=["maintainer-clean-generic"])
+            autotools.make()
 
     def package(self):
-        with tools.chdir(os.path.join(self.build_folder, self._source_subfolder)):
-            autotools = AutoToolsBuildEnvironment(self)
+        self.copy("COPYING", src=self._source_subfolder, dst="licenses")
+        with tools.chdir(self._source_subfolder):
+            autotools = self._configure_autotools()
             autotools.install()
-        self.copy("COPYING",
-                  src=os.path.join(os.path.join(self.source_folder,
-                                                self._source_subfolder)),
-                  dst="licenses")
-
-        # remove libtool .la files - they have hard-coded paths
         with tools.chdir(os.path.join(self.package_folder, "lib")):
             for filename in glob.glob("*.la"):
                 os.unlink(filename)
+        tools.rmdir(os.path.join(self.package_folder, "share"))
 
     def package_info(self):
-        self.cpp_info.includedirs = ["include"]
         self.cpp_info.libs = tools.collect_libs(self)
