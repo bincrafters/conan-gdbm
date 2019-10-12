@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import glob
 import os
 
@@ -47,10 +45,11 @@ class GdbmConan(ConanFile):
         if self.settings.os == "Windows":
             raise ConanInvalidConfiguration("gdbm is not supported on Windows.")
         del self.settings.compiler.libcxx
+        del self.settings.compiler.cppstd
 
     def requirements(self):
         if self.options.libiconv:
-            self.requires("libiconv/1.15@bincrafters/stable")
+            self.requires("libiconv/1.15")
         if self.options.readline:
             self.requires("readline/7.0@bincrafters/stable")
 
