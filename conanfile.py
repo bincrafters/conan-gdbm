@@ -16,7 +16,6 @@ class GdbmConan(ConanFile):
     topics = ("conan", "gdbm", "dbm", "hash", "database")
     url = "https://github.com/bincrafters/conan-gdbm"
     homepage = "https://www.gnu.org.ua/software/gdbm/gdbm.html"
-    author = "Bincrafters <bincrafters@gmail.com>"
     license = "GPL-3.0"
     settings = "os", "compiler", "build_type", "arch"
     options = {
