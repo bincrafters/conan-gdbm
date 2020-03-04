@@ -48,7 +48,7 @@ class GdbmConan(ConanFile):
 
     def requirements(self):
         if self.options.libiconv:
-            self.requires("libiconv/1.15")
+            self.requires("libiconv/1.16")
         if self.options.readline:
             self.requires("readline/7.0@bincrafters/stable")
 
