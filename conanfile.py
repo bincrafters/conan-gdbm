@@ -53,8 +53,8 @@ class GdbmConan(ConanFile):
             self.requires("readline/7.0@bincrafters/stable")
 
     def build_requirements(self):
-        self.build_requires("bison_installer/3.3.2@bincrafters/stable")
-        self.build_requires("flex_installer/2.6.4@bincrafters/stable")
+        self.build_requires("bison/3.5.3")
+        self.build_requires("flex/2.6.4")
 
     def source(self):
         filename = "{}-{}.tar.gz".format(self.name, self.version)
